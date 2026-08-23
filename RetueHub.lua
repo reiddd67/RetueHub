@@ -1,95 +1,89 @@
--- Touch Football Advanced Aim Script (v2)
--- Подходит для тестирования через Real / Madium на ПК
+-- RetueHub v0.2 - Touch Football (Rayfield UI Edition)
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
+local Window = Rayfield:CreateWindow({
+   Name = "RetueHub | Touch Football",
+   LoadingTitle = "RetueHub Loading...",
+   LoadingSubtitle = "by reiddd",
+   ConfigurationSaving = {
+      Enabled = false,
+   },
+   KeySystem = false,
+})
 
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local Tab = Window:CreateTab("Main", 4483362458) -- Иконка домика/главная
 
--- Настройки
+-- Переменные функций
 local Settings = {
-    Enabled = false, -- По умолчанию выключено, включаем с кнопки
-    TeamCheck = true,
-    FOV = 200,
+   AutoGoal = false,
+   GoalPower = 50, -- Сила удара/паса
 }
 
--- Создаем простейшую GUI кнопку для включения/выключения прямо в игре
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AimToggleGui"
-ScreenGui.ResetOnSpawn = false
--- Безопасная привязка к GUI игрока
-if syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-    ScreenGui.Parent = CoreGui
-else
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- Секция функций
+local Section = Tab:CreateSection("Функции для матча")
+
+-- Переключатель авто-гола / жесткого аима на ворота
+Tab:CreateToggle({
+   Name = "Авто-гол при касании мяча",
+   CurrentValue = false,
+   Flag = "AutoGoalToggle",
+   Callback = function(Value)
+      Settings.AutoGoal = Value
+      if Value then
+         Rayfield:Notify({
+            Title = "RetueHub",
+            Content = "Авто-гол активирован! При касании мяч полетит в ворота.",
+            Duration = 3,
+            Image = 4483362458,
+         })
+      end
+   end,
+})
+
+-- Логика перехвата касания мяча и направления в ворота
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+RunService = game:GetService("RunService")
+
+-- Пример поиска ворот на карте (обычно они называются Goal или Part ворот)
+local function getGoalPosition()
+   -- Ищем ворота на поле (в зависимости от карты название может отличаться, ищем общие ориентиры)
+   for _, obj in ipairs(workspace:GetDescendants()) do
+      if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("posts")) then
+         return obj.Position
+      end
+   end
+   -- Если точных ворот не нашлось, бьем по дефолтной точке впереди
+   return workspace.CurrentCamera.CFrame.Position + (workspace.CurrentCamera.CFrame.LookVector * 100)
 end
 
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Size = UDim2.new(0, 140, 0, 45)
-ToggleButton.Position = UDim2.new(0, 50, 0, 50) -- Уголок экрана
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 14
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.Text = "Aim: OFF"
-ToggleButton.Parent = ScreenGui
-
--- Логика кнопки
-ToggleButton.MouseButton1Click:Connect(function()
-    Settings.Enabled = not Settings.Enabled
-    if Settings.Enabled then
-        ToggleButton.Text = "Aim: ON"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    else
-        ToggleButton.Text = "Aim: OFF"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    end
-end)
-
--- Функция поиска ближайшей цели (соперника)
-local function getClosestTarget()
-    local target = nil
-    local shortestDistance = Settings.FOV
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            if not Settings.TeamCheck or player.Team ~= LocalPlayer.Team then
-                local character = player.Character
-                if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-                    local rootPart = character.HumanoidRootPart
-                    -- Целимся чуть выше центра (в грудь/корпус), чтобы пас ловился лучше
-                    local targetPos = rootPart.Position + Vector3.new(0, 0.5, 0)
-                    local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPos)
-                    
-                    if onScreen then
-                        local mouseLocation = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mouseLocation).Magnitude
-                        
-                        if distance < shortestDistance then
-                            shortestDistance = distance
-                            target = targetPos
-                        end
-                    end
-                end
+-- Основной обработчик события касания и изменения траектории мяча
+game:GetService("RunService").Stepped:Connect(function()
+   if Settings.AutoGoal then
+      local character = LocalPlayer.Character
+      if character and character:FindFirstChild("HumanoidRootPart") then
+         local hrp = character.HumanoidRootPart
+         
+         -- Ищем мяч поблизости от игрока
+         for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and (obj.Name:lower():find("ball") or obj.Name:lower():find("football")) then
+               local distance = (obj.Position - hrp.Position).Magnitude
+               -- Если мяч рядом (происходит касание/владение)
+               if distance < 6 then
+                  local goalPos = getGoalPosition()
+                  -- Мгновенно меняем вектор скорости мяча прямо в ворота
+                  if obj:FindFirstChildOfClass("BodyVelocity") or obj:FindFirstChildOfClass("LinearVelocity") then
+                     -- Если у мяча есть физический движок, подстраиваем velocity
+                  else
+                     -- Принудительно толкаем мяч в сторону ворот
+                     obj.Velocity = (goalPos - obj.Position).Unit * 150
+                  end
+               end
             end
-        end
-    end
-    return target
-end
-
--- Основной цикл работы аима
-RunService.RenderStepped:Connect(function()
-    if Settings.Enabled then
-        local targetPos = getClosestTarget()
-        if targetPos then
-            -- Плавное или моментальное переведение взгляда на цель
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-        end
-    end
+         end
+      end
+   end
 end)
 
-print("Touch Football Custom Aim успешно загружен!")
+Rayfield:LoadConfiguration()
