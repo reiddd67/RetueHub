@@ -1,38 +1,31 @@
--- RetueHub v0.2 - Touch Football (Rayfield UI Edition)
+-- Zenithware v0.3 - Touch Football (Fixed Instant Goal Aim)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "RetueHub | Touch Football",
-   LoadingTitle = "RetueHub Loading...",
+   Name = "Zenithware | Touch Football",
+   LoadingTitle = "Zenithware Loading...",
    LoadingSubtitle = "by reiddd",
-   ConfigurationSaving = {
-      Enabled = false,
-   },
+   ConfigurationSaving = { Enabled = false },
    KeySystem = false,
 })
 
-local Tab = Window:CreateTab("Main", 4483362458) -- Иконка домика/главная
+local Tab = Window:CreateTab("Main", 4483362458)
 
--- Переменные функций
 local Settings = {
    AutoGoal = false,
-   GoalPower = 50, -- Сила удара/паса
+   GoalPower = 180, -- Скорость полета мяча в ворота
 }
 
--- Секция функций
-local Section = Tab:CreateSection("Функции для матча")
-
--- Переключатель авто-гола / жесткого аима на ворота
 Tab:CreateToggle({
-   Name = "Авто-гол при касании мяча",
+   Name = "Моментальный авто-гол (В ворота соперника)",
    CurrentValue = false,
    Flag = "AutoGoalToggle",
    Callback = function(Value)
       Settings.AutoGoal = Value
       if Value then
          Rayfield:Notify({
-            Title = "RetueHub",
-            Content = "Авто-гол активирован! При касании мяч полетит в ворота.",
+            Title = "Zenithware",
+            Content = "Авто-гол активирован! При касании мяч полетит в ворота соперника.",
             Duration = 3,
             Image = 4483362458,
          })
@@ -40,44 +33,53 @@ Tab:CreateToggle({
    end,
 })
 
--- Логика перехвата касания мяча и направления в ворота
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-RunService = game:GetService("RunService")
-
--- Пример поиска ворот на карте (обычно они называются Goal или Part ворот)
-local function getGoalPosition()
-   -- Ищем ворота на поле (в зависимости от карты название может отличаться, ищем общие ориентиры)
+-- Функция точного поиска вражеских ворот (чтобы не забить в свои)
+local function getEnemyGoalPosition()
+   local closestGoal = nil
+   local shortestDist = math.huge
+   
    for _, obj in ipairs(workspace:GetDescendants()) do
       if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("posts")) then
-         return obj.Position
+         -- Исключаем свои ворота, если они привязаны к командной зоне, либо ищем противоположные от нашей базы
+         local dist = (obj.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+         -- Ворота противника обычно дальше от нас, чем свои, либо имеют маркер вражеской стороны
+         if dist > 30 and dist < shortestDist then
+            shortestDist = dist
+            closestGoal = obj.Position
+         end
       end
    end
-   -- Если точных ворот не нашлось, бьем по дефолтной точке впереди
-   return workspace.CurrentCamera.CFrame.Position + (workspace.CurrentCamera.CFrame.LookVector * 100)
+   
+   -- Если ворота не нашлись поблизости, берем точку далеко впереди по взгляду камеры
+   if not closestGoal then
+      closestGoal = workspace.CurrentCamera.CFrame.Position + (workspace.CurrentCamera.CFrame.LookVector * 200)
+   end
+   
+   return closestGoal
 end
 
--- Основной обработчик события касания и изменения траектории мяча
-game:GetService("RunService").Stepped:Connect(function()
+-- Жесткий обработчик касания и моментального пуляния мяча
+RunService.Stepped:Connect(function()
    if Settings.AutoGoal then
       local character = LocalPlayer.Character
       if character and character:FindFirstChild("HumanoidRootPart") then
          local hrp = character.HumanoidRootPart
          
-         -- Ищем мяч поблизости от игрока
          for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and (obj.Name:lower():find("ball") or obj.Name:lower():find("football")) then
                local distance = (obj.Position - hrp.Position).Magnitude
-               -- Если мяч рядом (происходит касание/владение)
-               if distance < 6 then
-                  local goalPos = getGoalPosition()
-                  -- Мгновенно меняем вектор скорости мяча прямо в ворота
-                  if obj:FindFirstChildOfClass("BodyVelocity") or obj:FindFirstChildOfClass("LinearVelocity") then
-                     -- Если у мяча есть физический движок, подстраиваем velocity
-                  else
-                     -- Принудительно толкаем мяч в сторону ворот
-                     obj.Velocity = (goalPos - obj.Position).Unit * 150
+               
+               -- Как только происходит касание мяча (дистанция меньше 5 ступней)
+               if distance < 5 then
+                  local enemyGoalPos = getEnemyGoalPosition()
+                  
+                  -- Обнуляем старую физику и пуляем мяч на максимальной скорости в ворота врага
+                  if obj:IsA("BasePart") then
+                     obj.AssemblyLinearVelocity = (enemyGoalPos - obj.Position).Unit * Settings.GoalPower
                   end
                end
             end
