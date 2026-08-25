@@ -1,118 +1,177 @@
 -- ========================================================
--- Zenithware v0.5 Ultimate | Touch Football
--- Developed for Delta & Mobile Executors
+-- Zenithware v1.0 (Mega Update) | Touch Football
+-- Features: Aim-Lock, Aim Predict, Aim Silent & Rayfield UI
 -- ========================================================
 
--- Проверка на загрузку UI библиотек
 local Success, Rayfield = pcall(function()
     return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 end)
 
 if not Success or not Rayfield then
-    warn("Zenithware: Не удалось загрузить Rayfield UI!")
+    warn("Zenithware: Не удалось загрузить UI!")
     return
 end
 
 local Window = Rayfield:CreateWindow({
-   Name = "Zenithware | Touch Football v0.5",
-   LoadingTitle = "Загрузка Zenithware...",
+   Name = "Zenithware v1.0 | Ultimate Football",
+   LoadingTitle = "Загрузка Zenithware v1.0...",
    LoadingSubtitle = "by reiddd",
-   ConfigurationSaving = {
-      Enabled = false,
-      FolderName = "ZenithwareConfig",
-      FileName = "TouchFootball"
-   },
+   ConfigurationSaving = { Enabled = false },
    KeySystem = false,
 })
 
 local MainTab = Window:CreateTab("Главная", 4483362458)
-local SettingsTab = Window:CreateTab("Настройки", 4483362458)
+local SettingsTab = Window:CreateTab("Настройки Aim", 4483362458)
 
--- Переменные конфигурации
 local Config = {
-   AutoGoal = false,
-   GoalPower = 300, -- Мощность удара по умолчанию
-   HitboxExpand = false
+   Active = false,
+   Mode = "Aim-Lock", -- Режимы: Aim-Lock, Aim Predict, Aim Silent
+   Power = 350,
+   PredictionFactor = 0.15, -- Коэффициент упреждения для predict
 }
 
--- Главный переключатель
 MainTab:CreateToggle({
-   Name = "Ультимативный авто-гол (Aim-Lock)",
+   Name = "Включить Zenithware Core",
    CurrentValue = false,
-   Flag = "AutoGoalToggle",
+   Flag = "CoreToggle",
    Callback = function(Value)
-      Config.AutoGoal = Value
+      Config.Active = Value
       Rayfield:Notify({
          Title = "Zenithware",
-         Content = Value ? "Авто-гол включен!" : "Авто-гол выключен.",
+         Content = Value ? "Софт активирован!" : "Софт выключен.",
          Duration = 2,
          Image = 4483362458,
       })
    end,
 })
 
--- Слайдер настройки силы удара
+SettingsTab:CreateDropdown({
+   Name = "Выбор режима Аима",
+   Options = {"Aim-Lock", "Aim Predict", "Aim Silent"},
+   CurrentOption = "Aim-Lock",
+   Flag = "AimModeDropdown",
+   Callback = function(Option)
+      Config.Mode = Option[1]
+      Rayfield:Notify({
+         Title = "Режим изменен",
+         Content = "Установлен: " .. Config.Mode,
+         Duration = 2,
+         Image = 4483362458,
+      })
+   end,
+})
+
 SettingsTab:CreateSlider({
    Name = "Сила удара / Мощность",
-   Range = {100, 600},
+   Range = {150, 700},
    Increment = 10,
    Suffix = " Power",
-   CurrentValue = 300,
-   Flag = "GoalPowerSlider",
+   CurrentValue = 350,
+   Flag = "PowerSlider",
    Callback = function(Value)
-      Config.GoalPower = Value
+      Config.Power = Value
    end,
 })
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
--- Функция точного перехвата и удара мяча
-local function processBall(ball)
-   if not ball or not ball:IsA("BasePart") then return end
+-- Поиск вражеских ворот по позициям на карте
+local function getTargetGoal()
+   local char = LocalPlayer.Character
+   if not char or not char:FindFirstChild("HumanoidRootPart") then 
+      return Workspace.CurrentCamera.CFrame.Position + (Workspace.CurrentCamera.CFrame.LookVector * 300) 
+   end
    
+   local myPos = char.HumanoidRootPart.Position
+   local bestGoalPos = nil
+   local maxDist = 0
+   
+   for _, obj in ipairs(Workspace:GetDescendants()) do
+      if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("post")) then
+         local dist = (obj.Position - myPos).Magnitude
+         -- Ворота противника всегда дальше от нас
+         if dist > maxDist and dist > 30 then
+             maxDist = dist
+             bestGoalPos = obj.Position
+         end
+      end
+   end
+   
+   if not bestGoalPos then
+      bestGoalPos = myPos + (char.HumanoidRootPart.CFrame.LookVector * 400)
+   end
+   
+   return bestGoalPos
+end
+
+-- Обработка физики мяча под разные типы аима
+local function applyAimLogic(ball)
+   if not Config.Active then return end
+   local char = LocalPlayer.Character
+   if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+   
+   local camera = Workspace.CurrentCamera
+   local targetGoal = getTargetGoal()
+   local direction = (targetGoal - ball.Position).Unit
+   
+   if Config.Mode == "Aim-Lock" then
+      -- Бьет прямо по направлению камеры игрока
+      direction = camera.CFrame.LookVector
+      ball.AssemblyLinearVelocity = direction * Config.Power
+      
+   elseif Config.Mode == "Aim Predict" then
+      -- Вычисляет упреждение с учетом скорости движения мяча/цели
+      local velocityPredict = ball.AssemblyLinearVelocity * Config.PredictionFactor
+      local predictedTarget = targetGoal + velocityPredict
+      direction = (predictedTarget - ball.Position).Unit
+      ball.AssemblyLinearVelocity = direction * Config.Power
+      
+   elseif Config.Mode == "Aim Silent" then
+      -- Скрытый удар: перенаправляет вектор скорости мгновенно в ворота без поворота персонажа
+      ball.AssemblyLinearVelocity = direction * Config.Power
+      ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+   end
+end
+
+-- Хукаем мячи на карте
+local function hookBall(ball)
+   if not ball or not ball:IsA("BasePart") then return end
    local name = ball.Name:lower()
+   
    if name:find("ball") or name:find("football") then
-      -- Проверяем, не хукали ли мы этот мяч ранее
       if not ball:GetAttribute("ZenithHooked") then
          ball:SetAttribute("ZenithHooked", true)
          
-         -- Событие касания мяча игроком
          ball.Touched:Connect(function(hit)
-            if Config.AutoGoal then
-               local character = LocalPlayer.Character
-               if character and hit:IsDescendantOf(character) then
-                  local camera = workspace.CurrentCamera
-                  if camera then
-                     -- Придаем моментальный вектор скорости строго по взгляду камеры
-                     ball.AssemblyLinearVelocity = camera.CFrame.LookVector * Config.GoalPower
-                     ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                  end
-               end
+            if hit:IsDescendantOf(LocalPlayer.Character) then
+               pcall(function()
+                  applyAimLogic(ball)
+               end)
             end
          end)
       end
    end
 end
 
--- Фоновый поток для непрерывного сканирования мячей на карте (с защитой от крашей)
+-- Сканировщик мира
 task.spawn(function()
    while true do
-      local success, err = pcall(function()
-         for _, obj in ipairs(workspace:GetDescendants()) do
-            processBall(obj)
+      pcall(function()
+         for _, obj in ipairs(Workspace:GetDescendants()) do
+            hookBall(obj)
          end
       end)
-      task.wait(1.5) -- Оптимизация: сканируем каждые 1.5 секунды, не нагружая мобильный процессор
+      task.wait(1)
    end
 end)
 
 Rayfield:LoadConfiguration()
 
 Rayfield:Notify({
-   Title = "Zenithware загружен!",
-   Content = "Скрипт успешно запущен. Приятной игры!",
+   Title = "Zenithware v1.0 Запущен!",
+   Content = "Масштабное обновление успешно загружено.",
    Duration = 3,
    Image = 4483362458,
 })
