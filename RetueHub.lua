@@ -1,88 +1,94 @@
--- Zenithware v0.4 - Touch Football (Fixed Touch & Goal Logic)
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- ========================================================
+-- Zenithware v0.5 Ultimate | Touch Football
+-- Developed for Delta & Mobile Executors
+-- ========================================================
+
+-- Проверка на загрузку UI библиотек
+local Success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not Success or not Rayfield then
+    warn("Zenithware: Не удалось загрузить Rayfield UI!")
+    return
+end
 
 local Window = Rayfield:CreateWindow({
-   Name = "Zenithware | Touch Football",
-   LoadingTitle = "Zenithware Loading...",
+   Name = "Zenithware | Touch Football v0.5",
+   LoadingTitle = "Загрузка Zenithware...",
    LoadingSubtitle = "by reiddd",
-   ConfigurationSaving = { Enabled = false },
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = "ZenithwareConfig",
+      FileName = "TouchFootball"
+   },
    KeySystem = false,
 })
 
-local Tab = Window:CreateTab("Main", 4483362458)
+local MainTab = Window:CreateTab("Главная", 4483362458)
+local SettingsTab = Window:CreateTab("Настройки", 4483362458)
 
-local Settings = {
+-- Переменные конфигурации
+local Config = {
    AutoGoal = false,
-   GoalPower = 220, -- Увеличили мощность для верности
+   GoalPower = 300, -- Мощность удара по умолчанию
+   HitboxExpand = false
 }
 
-Tab:CreateToggle({
-   Name = "Моментальный авто-гол (Только в ворота соперника)",
+-- Главный переключатель
+MainTab:CreateToggle({
+   Name = "Ультимативный авто-гол (Aim-Lock)",
    CurrentValue = false,
    Flag = "AutoGoalToggle",
    Callback = function(Value)
-      Settings.AutoGoal = Value
-      if Value then
-         Rayfield:Notify({
-            Title = "Zenithware",
-            Content = "Ультимативный авто-гол активирован!",
-            Duration = 3,
-            Image = 4483362458,
-         })
-      end
+      Config.AutoGoal = Value
+      Rayfield:Notify({
+         Title = "Zenithware",
+         Content = Value ? "Авто-гол включен!" : "Авто-гол выключен.",
+         Duration = 2,
+         Image = 4483362458,
+      })
+   end,
+})
+
+-- Слайдер настройки силы удара
+SettingsTab:CreateSlider({
+   Name = "Сила удара / Мощность",
+   Range = {100, 600},
+   Increment = 10,
+   Suffix = " Power",
+   CurrentValue = 300,
+   Flag = "GoalPowerSlider",
+   Callback = function(Value)
+      Config.GoalPower = Value
    end,
 })
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Жесткий поиск вражеских ворот по цвету или названию (ищем то, что дальше всего от нашей базы)
-local function getRealEnemyGoal()
-   local character = LocalPlayer.Character
-   if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+-- Функция точного перехвата и удара мяча
+local function processBall(ball)
+   if not ball or not ball:IsA("BasePart") then return end
    
-   local myPos = character.HumanoidRootPart.Position
-   local bestGoal = nil
-   local maxDist = 0
-   
-   for _, obj in ipairs(workspace:GetDescendants()) do
-      if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("post")) then
-         local dist = (obj.Position - myPos).Magnitude
-         -- Ворота противника всегда находятся дальше от нас, чем наши собственные
-         if dist > maxDist and dist > 40 then
-            maxDist = dist
-            bestGoal = obj.Position
-         end
-      end
-   end
-   
-   -- Если ворота не найдены, лупим далеко вперед по камере
-   if not bestGoal then
-      bestGoal = workspace.CurrentCamera.CFrame.Position + (workspace.CurrentCamera.CFrame.LookVector * 300)
-   end
-   
-   return bestGoal
-end
-
--- Перехват касания через событие Touch (чтобы мяч не пролетал сквозь игрока)
-local function hookBall(ball)
-   if not ball:IsA("BasePart") then return end
-   
-   -- Проверяем, что это реально мяч по имени
    local name = ball.Name:lower()
    if name:find("ball") or name:find("football") then
+      -- Проверяем, не хукали ли мы этот мяч ранее
       if not ball:GetAttribute("ZenithHooked") then
          ball:SetAttribute("ZenithHooked", true)
          
+         -- Событие касания мяча игроком
          ball.Touched:Connect(function(hit)
-            if Settings.AutoGoal then
+            if Config.AutoGoal then
                local character = LocalPlayer.Character
-               if character and (hit:IsDescendantOf(character)) then
-                  local enemyGoal = getRealEnemyGoal()
-                  
-                  -- Придаем мгновенное ускорение прямо в ворота противника
-                  ball.AssemblyLinearVelocity = (enemyGoal - ball.Position).Unit * Settings.GoalPower
-                  ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+               if character and hit:IsDescendantOf(character) then
+                  local camera = workspace.CurrentCamera
+                  if camera then
+                     -- Придаем моментальный вектор скорости строго по взгляду камеры
+                     ball.AssemblyLinearVelocity = camera.CFrame.LookVector * Config.GoalPower
+                     ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                  end
                end
             end
          end)
@@ -90,16 +96,23 @@ local function hookBall(ball)
    end
 end
 
--- Сканируем мячи на карте в реальном времени
+-- Фоновый поток для непрерывного сканирования мячей на карте (с защитой от крашей)
 task.spawn(function()
    while true do
-      task.wait(1)
-      for _, obj in ipairs(workspace:GetDescendants()) do
-         if obj:IsA("BasePart") then
-            hookBall(obj)
+      local success, err = pcall(function()
+         for _, obj in ipairs(workspace:GetDescendants()) do
+            processBall(obj)
          end
-      end
+      end)
+      task.wait(1.5) -- Оптимизация: сканируем каждые 1.5 секунды, не нагружая мобильный процессор
    end
 end)
 
 Rayfield:LoadConfiguration()
+
+Rayfield:Notify({
+   Title = "Zenithware загружен!",
+   Content = "Скрипт успешно запущен. Приятной игры!",
+   Duration = 3,
+   Image = 4483362458,
+})
