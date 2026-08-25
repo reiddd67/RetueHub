@@ -1,4 +1,4 @@
--- Zenithware v0.3 - Touch Football (Fixed Instant Goal Aim)
+-- Zenithware v0.4 - Touch Football (Fixed Touch & Goal Logic)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -13,11 +13,11 @@ local Tab = Window:CreateTab("Main", 4483362458)
 
 local Settings = {
    AutoGoal = false,
-   GoalPower = 180, -- Скорость полета мяча в ворота
+   GoalPower = 220, -- Увеличили мощность для верности
 }
 
 Tab:CreateToggle({
-   Name = "Моментальный авто-гол (В ворота соперника)",
+   Name = "Моментальный авто-гол (Только в ворота соперника)",
    CurrentValue = false,
    Flag = "AutoGoalToggle",
    Callback = function(Value)
@@ -25,7 +25,7 @@ Tab:CreateToggle({
       if Value then
          Rayfield:Notify({
             Title = "Zenithware",
-            Content = "Авто-гол активирован! При касании мяч полетит в ворота соперника.",
+            Content = "Ультимативный авто-гол активирован!",
             Duration = 3,
             Image = 4483362458,
          })
@@ -34,55 +34,69 @@ Tab:CreateToggle({
 })
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Функция точного поиска вражеских ворот (чтобы не забить в свои)
-local function getEnemyGoalPosition()
-   local closestGoal = nil
-   local shortestDist = math.huge
+-- Жесткий поиск вражеских ворот по цвету или названию (ищем то, что дальше всего от нашей базы)
+local function getRealEnemyGoal()
+   local character = LocalPlayer.Character
+   if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+   
+   local myPos = character.HumanoidRootPart.Position
+   local bestGoal = nil
+   local maxDist = 0
    
    for _, obj in ipairs(workspace:GetDescendants()) do
-      if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("posts")) then
-         -- Исключаем свои ворота, если они привязаны к командной зоне, либо ищем противоположные от нашей базы
-         local dist = (obj.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-         -- Ворота противника обычно дальше от нас, чем свои, либо имеют маркер вражеской стороны
-         if dist > 30 and dist < shortestDist then
-            shortestDist = dist
-            closestGoal = obj.Position
+      if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("post")) then
+         local dist = (obj.Position - myPos).Magnitude
+         -- Ворота противника всегда находятся дальше от нас, чем наши собственные
+         if dist > maxDist and dist > 40 then
+            maxDist = dist
+            bestGoal = obj.Position
          end
       end
    end
    
-   -- Если ворота не нашлись поблизости, берем точку далеко впереди по взгляду камеры
-   if not closestGoal then
-      closestGoal = workspace.CurrentCamera.CFrame.Position + (workspace.CurrentCamera.CFrame.LookVector * 200)
+   -- Если ворота не найдены, лупим далеко вперед по камере
+   if not bestGoal then
+      bestGoal = workspace.CurrentCamera.CFrame.Position + (workspace.CurrentCamera.CFrame.LookVector * 300)
    end
    
-   return closestGoal
+   return bestGoal
 end
 
--- Жесткий обработчик касания и моментального пуляния мяча
-RunService.Stepped:Connect(function()
-   if Settings.AutoGoal then
-      local character = LocalPlayer.Character
-      if character and character:FindFirstChild("HumanoidRootPart") then
-         local hrp = character.HumanoidRootPart
+-- Перехват касания через событие Touch (чтобы мяч не пролетал сквозь игрока)
+local function hookBall(ball)
+   if not ball:IsA("BasePart") then return end
+   
+   -- Проверяем, что это реально мяч по имени
+   local name = ball.Name:lower()
+   if name:find("ball") or name:find("football") then
+      if not ball:GetAttribute("ZenithHooked") then
+         ball:SetAttribute("ZenithHooked", true)
          
-         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and (obj.Name:lower():find("ball") or obj.Name:lower():find("football")) then
-               local distance = (obj.Position - hrp.Position).Magnitude
-               
-               -- Как только происходит касание мяча (дистанция меньше 5 ступней)
-               if distance < 5 then
-                  local enemyGoalPos = getEnemyGoalPosition()
+         ball.Touched:Connect(function(hit)
+            if Settings.AutoGoal then
+               local character = LocalPlayer.Character
+               if character and (hit:IsDescendantOf(character)) then
+                  local enemyGoal = getRealEnemyGoal()
                   
-                  -- Обнуляем старую физику и пуляем мяч на максимальной скорости в ворота врага
-                  if obj:IsA("BasePart") then
-                     obj.AssemblyLinearVelocity = (enemyGoalPos - obj.Position).Unit * Settings.GoalPower
-                  end
+                  -- Придаем мгновенное ускорение прямо в ворота противника
+                  ball.AssemblyLinearVelocity = (enemyGoal - ball.Position).Unit * Settings.GoalPower
+                  ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                end
             end
+         end)
+      end
+   end
+end
+
+-- Сканируем мячи на карте в реальном времени
+task.spawn(function()
+   while true do
+      task.wait(1)
+      for _, obj in ipairs(workspace:GetDescendants()) do
+         if obj:IsA("BasePart") then
+            hookBall(obj)
          end
       end
    end
