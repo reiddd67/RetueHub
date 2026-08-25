@@ -25,9 +25,9 @@ local SettingsTab = Window:CreateTab("Настройки Aim", 4483362458)
 
 local Config = {
    Active = false,
-   Mode = "Aim-Lock", -- Режимы: Aim-Lock, Aim Predict, Aim Silent
+   Mode = "Aim-Lock",
    Power = 350,
-   PredictionFactor = 0.15, -- Коэффициент упреждения для predict
+   PredictionFactor = 0.15,
 }
 
 MainTab:CreateToggle({
@@ -36,9 +36,13 @@ MainTab:CreateToggle({
    Flag = "CoreToggle",
    Callback = function(Value)
       Config.Active = Value
+      local notifyText = "Софт выключен."
+      if Value then
+         notifyText = "Софт активирован!"
+      end
       Rayfield:Notify({
          Title = "Zenithware",
-         Content = Value ? "Софт активирован!" : "Софт выключен.",
+         Content = notifyText,
          Duration = 2,
          Image = 4483362458,
       })
@@ -51,10 +55,14 @@ SettingsTab:CreateDropdown({
    CurrentOption = "Aim-Lock",
    Flag = "AimModeDropdown",
    Callback = function(Option)
-      Config.Mode = Option[1]
+      if type(Option) == "table" then
+         Config.Mode = Option[1]
+      else
+         Config.Mode = Option
+      end
       Rayfield:Notify({
          Title = "Режим изменен",
-         Content = "Установлен: " .. Config.Mode,
+         Content = "Установлен: " .. tostring(Config.Mode),
          Duration = 2,
          Image = 4483362458,
       })
@@ -77,7 +85,6 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 
--- Поиск вражеских ворот по позициям на карте
 local function getTargetGoal()
    local char = LocalPlayer.Character
    if not char or not char:FindFirstChild("HumanoidRootPart") then 
@@ -89,12 +96,14 @@ local function getTargetGoal()
    local maxDist = 0
    
    for _, obj in ipairs(Workspace:GetDescendants()) do
-      if obj:IsA("BasePart") and (obj.Name:lower():find("goal") or obj.Name:lower():find("net") or obj.Name:lower():find("post")) then
-         local dist = (obj.Position - myPos).Magnitude
-         -- Ворота противника всегда дальше от нас
-         if dist > maxDist and dist > 30 then
-             maxDist = dist
-             bestGoalPos = obj.Position
+      if obj:IsA("BasePart") then
+         local nameLower = obj.Name:lower()
+         if nameLower:find("goal") or nameLower:find("net") or nameLower:find("post") then
+            local dist = (obj.Position - myPos).Magnitude
+            if dist > maxDist and dist > 30 then
+                maxDist = dist
+                bestGoalPos = obj.Position
+            end
          end
       end
    end
@@ -106,7 +115,6 @@ local function getTargetGoal()
    return bestGoalPos
 end
 
--- Обработка физики мяча под разные типы аима
 local function applyAimLogic(ball)
    if not Config.Active then return end
    local char = LocalPlayer.Character
@@ -117,25 +125,25 @@ local function applyAimLogic(ball)
    local direction = (targetGoal - ball.Position).Unit
    
    if Config.Mode == "Aim-Lock" then
-      -- Бьет прямо по направлению камеры игрока
-      direction = camera.CFrame.LookVector
+      if camera then
+         direction = camera.CFrame.LookVector
+      end
       ball.AssemblyLinearVelocity = direction * Config.Power
       
    elseif Config.Mode == "Aim Predict" then
-      -- Вычисляет упреждение с учетом скорости движения мяча/цели
-      local velocityPredict = ball.AssemblyLinearVelocity * Config.PredictionFactor
+      local vel = ball.AssemblyLinearVelocity
+      if not vel then vel = Vector3.new(0,0,0) end
+      local velocityPredict = vel * Config.PredictionFactor
       local predictedTarget = targetGoal + velocityPredict
       direction = (predictedTarget - ball.Position).Unit
       ball.AssemblyLinearVelocity = direction * Config.Power
       
    elseif Config.Mode == "Aim Silent" then
-      -- Скрытый удар: перенаправляет вектор скорости мгновенно в ворота без поворота персонажа
       ball.AssemblyLinearVelocity = direction * Config.Power
       ball.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
    end
 end
 
--- Хукаем мячи на карте
 local function hookBall(ball)
    if not ball or not ball:IsA("BasePart") then return end
    local name = ball.Name:lower()
@@ -145,17 +153,17 @@ local function hookBall(ball)
          ball:SetAttribute("ZenithHooked", true)
          
          ball.Touched:Connect(function(hit)
-            if hit:IsDescendantOf(LocalPlayer.Character) then
-               pcall(function()
-                  applyAimLogic(ball)
-               end)
-            end
+             pcall(function()
+                 local char = LocalPlayer.Character
+                 if char and hit:IsDescendantOf(char) then
+                     applyAimLogic(ball)
+                 end
+             end)
          end)
       end
    end
 end
 
--- Сканировщик мира
 task.spawn(function()
    while true do
       pcall(function()
