@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Zenithware v2.1 | Touch Football Ultimate Auto-Goal Engine
+-- Zenithware v2.1 | Touch Football Ultimate Auto-Goal Engine (Fixed)
 -- ==============================================================================
 
 local VERSION = "v2.1 Pro"
@@ -20,7 +20,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 local Window = Rayfield:CreateWindow({
-   Name = "Zenithware " .. VERSION + " | Touch Football",
+   Name = "Zenithware " .. VERSION .. " | Touch Football",
    LoadingTitle = "Initializing Zenithware Core...",
    LoadingSubtitle = "By " .. AUTHOR,
    ConfigurationSaving = { Enabled = false },
@@ -62,17 +62,13 @@ TabVisuals:CreateToggle({
    end,
 })
 
--- Функция поиска ворот соперника (определяем по позициям или направлению камеры)
 local function getOpponentGoalPosition()
-   -- Ищем ворота или стойки на карте, если нет — берем точку впереди по направлению атаки
    local targetPos = Camera.CFrame.Position + (Camera.CFrame.LookVector * 300)
    
    for _, obj in ipairs(Workspace:GetDescendants()) do
       if obj:IsA("BasePart") then
          local name = obj.Name:lower()
-         -- Поиск триггеров ворот или самих ворот на карте
          if name:find("goal") or name:find("net") or name:find("target") then
-            -- Проверяем, что это не наши ворота (находятся дальше от нас или по другую сторону)
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                local dist = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
                if dist > 40 then 
@@ -85,7 +81,6 @@ local function getOpponentGoalPosition()
    return targetPos
 end
 
--- Основная логика мгновенного перенаправления мяча при касании
 local function setupBall(ball)
    if not ball or ball:GetAttribute("ZenithHooked") then return end
    ball:SetAttribute("ZenithHooked", true)
@@ -97,27 +92,19 @@ local function setupBall(ball)
       local char = LocalPlayer.Character
       if char and hit:IsDescendantOf(char) then
          pcall(function()
-            -- Сохраняем текущую скорость и направление (чтобы летело естественно)
             local currentVelocity = ball.AssemblyLinearVelocity
             local speed = currentVelocity.Magnitude
-            if speed < 10 then speed = 60 end -- Страховка на случай слабого касания
+            if speed < 10 then speed = 60 end
 
-            -- Находим цель (ворота)
             local goalPos = getOpponentGoalPosition()
-            
-            -- Вычисляем вектор направления строго в ворота
             local direction = (goalPos - ball.Position).Unit
             
-            -- Мгновенно меняем траекторию полета, сохраняя родную скорость удара
             ball.AssemblyLinearVelocity = direction * speed
-            
-            -- Дополнительно сдвигаем CFrame на микрошаг вперед, чтобы избежать багов коллизии
             ball.CFrame = CFrame.new(ball.Position, goalPos)
          end)
       end
    end)
 
-   -- Очистка при удалении мяча
    ball.AncestryChanged:Connect(function()
       if not ball.Parent then
          if connection then connection:Disconnect() end
@@ -125,7 +112,6 @@ local function setupBall(ball)
    end)
 end
 
--- Быстрый и легкий сканер мячей на поле (без нагрузки на процессор)
 task.spawn(function()
    while true do
       pcall(function()
@@ -137,7 +123,6 @@ task.spawn(function()
                end
             end
          end
-         -- Также проверяем папки с инвентарем/мячами если они есть
          for _, child in ipairs(Workspace:GetChildren()) do
             if child:IsA("Folder") or child:IsA("Model") then
                for _, obj in ipairs(child:GetChildren()) do
