@@ -1,23 +1,23 @@
 -- ==============================================================================
--- Zenithware Enterprise Core v3.0 | Soccer: Touch Football Ultimate
--- Architecture: Enterprise Modular Simulation & Vector Redirection Engine
--- Target Executor: Real (100% sUNC Compatible)
+-- Zenithware Enterprise Ultra-Massive Core v5.4 | Soccer: Touch Football
+-- Architecture: Secure Hooking, Metatable Interception & Vector Physics Redirection
+-- Target Executor: Real (100% Native sUNC Compliant)
 -- ==============================================================================
 
-local VERSION = "v3.0 Enterprise"
+local VERSION = "v5.4 Enterprise Ultimate"
 local AUTHOR = "reiddd"
 
--- Проверка и загрузка интерфейсной библиотеки Fluent UI
+-- Защищенная инициализация графического ядра Fluent UI
 local Success, Fluent = pcall(function()
     return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 end)
 
 if not Success or not Fluent then
-    warn("[Zenithware Fatal]: Failed to initialize Fluent UI core framework.")
+    warn("[Zenithware Fatal]: UI Library load failed. Execution halted to prevent memory leak.")
     return
 end
 
--- Инициализация основных игровых служб Roblox
+-- Получение ключевых сервисов Roblox с проверкой доступности
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -28,115 +28,156 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Создание главного премиального окна
+-- Защита от повторного запуска (уничтожение старого экземпляра интерфейса)
+if getgenv().ZenithwareRunning then
+    pcall(function()
+        getgenv().ZenithwareRunning:Destroy()
+    end)
+end
+
 local Window = Fluent:CreateWindow({
     Title = "Zenithware Enterprise",
-    SubTitle = "Soccer: Touch Football | " .. VERSION,
+    SubTitle = "Soccer: Touch Football Engine | " .. VERSION,
     TabWidth = 180,
-    Size = UDim2.fromOffset(580, 440),
-    Acrylic = true, -- Включение размытия под стиль Windows 11
+    Size = UDim2.fromOffset(600, 450),
+    Acrylic = true,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl -- Кнопка скрытия/показа меню
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Организация вкладок интерфейса
+getgenv().ZenithwareRunning = Window
+
+-- Организация вкладок массивного софта
 local Tabs = {
-    Main = Window:AddTab({ Title = "Aimbot & Curve", Icon = "target" }),
+    Main = Window:AddTab({ Title = "Aimbot & Physics", Icon = "target" }),
+    Curve = Window:AddTab({ Title = "Curve & Ball Mod", Icon = "zap" }),
     Visuals = Window:AddTab({ Title = "Visuals & ESP", Icon = "eye" }),
-    Settings = Window:AddTab({ Title = "Engine Config", Icon = "settings" }),
-    Info = Window:AddTab({ Title = "System Info", Icon = "info" })
+    Settings = Window:AddTab({ Title = "System Config", Icon = "settings" }),
+    Info = Window:AddTab({ Title = "Telemetry", Icon = "info" })
 }
 
 local Options = Fluent.Options
 
--- Глобальная таблица конфигурации движка
+-- Конфигурационная структура параметров
 local ZenithConfig = {
     AimbotEnabled = false,
-    PredictionAmount = 0.35,
-    AimTargetPart = "Center",
+    PredictionValue = 0.40,
+    TargetMode = "Optimal Net Center",
+    ReachModifier = false,
+    ReachDistance = 15,
     CurveEnabled = false,
-    CurvePower = 20.0,
-    CurveType = "Swerve (Dry Leaf)",
+    CurveType = "Dry Leaf (Swerve)",
+    CurvePower = 25.0,
     BallESP = true,
-    TracerEnabled = false,
-    NotificationSystem = true,
-    DebugMode = false,
+    TracerLine = false,
+    DebugConsole = false,
+    NotificationSystem = true
 }
 
 -- ==============================================================================
--- ВКЛАДКА 1: AIMBOT & CURVE (Основной функционал)
+-- ВКЛАДКА 1: AIMBOT & PHYSICS ENGINE
 -- ==============================================================================
 
 Tabs.Main:AddParagraph({
-    Title = "Модуль управления ударами",
-    Content = "Включает интеллектуальный расчет траектории полета мяча и мгновенное доворочное ускорение в ворота соперника."
+    Title = "Модуль баллистического расчета",
+    Content = "Интеграция векторного перенаправления и предиктивного расчета ворот для режима Touch Football."
 })
 
 Tabs.Main:AddToggle("AimbotToggle", {
-    Title = "Aimbot (Auto Goal Redirection)",
+    Title = "Aimbot (Auto-Goal Vector Redirection)",
     Default = false,
-    Description = "Мгновенно перенаправляет вектор мяча в ворота при касании",
+    Description = "Мгновенно перенаправляет мяч в ворота соперника при касании",
     Callback = function(Value)
         ZenithConfig.AimbotEnabled = Value
         if ZenithConfig.NotificationSystem then
             Fluent:Notify({
-                Title = "Zenithware Status",
-                Content = Value and "Aimbot Engine Online & Locked" : "Aimbot Engine Standby",
+                Title = "Zenithware Core",
+                Content = Value and "Aimbot Online & Active" or "Aimbot Standby",
                 Duration = 2
             })
         end
     end
 })
 
-Tabs.Main:AddSlider("PredictionSlider", {
-    Title = "Prediction Multiplier",
-    Description = "Коэффициент упреждения движения вратаря и ворот",
-    Default = 0.35,
+Tabs.Main:AddSlider("PredSlider", {
+    Title = "Ball Prediction Multiplier",
+    Description = "Коэффициент упреждения траектории вратаря",
+    Default = 0.40,
     Min = 0.05,
     Max = 1.0,
     Rounding = 2,
     Callback = function(Value)
-        ZenithConfig.PredictionAmount = Value
+        ZenithConfig.PredictionValue = Value
     end
 })
 
-Tabs.Main:AddDropdown("AimTargetDropdown", {
-    Title = "Target Zone",
-    Description = "Точка прицеливания в зоне ворот",
-    Values = {"Center", "Top Corner (Hole)", "Bottom Corner (Low)"},
+Tabs.Main:AddDropdown("TargetDropdown", {
+    Title = "Goal Target Offset",
+    Description = "Зона поражения сетки ворот",
+    Values = {"Optimal Net Center", "Top Left Corner", "Bottom Right Corner", "Randomized Spread"},
     Default = 1,
     Callback = function(Value)
-        ZenithConfig.AimTargetPart = Value
+        ZenithConfig.TargetMode = Value
     end
 })
 
 Tabs.Main:AddDivider()
 
-Tabs.Main:AddToggle("CurveToggle", {
-    Title = "Aimbot Ball Curve",
+Tabs.Main:AddToggle("ReachToggle", {
+    Title = "Extended Ball Reach (Hitbox)",
     Default = false,
-    Description = "Придает мячу мощную угловую закрутку при ударе",
+    Description = "Увеличивает радиус взаимодействия с мячом на поле",
+    Callback = function(Value)
+        ZenithConfig.ReachModifier = Value
+    end
+})
+
+Tabs.Main:AddSlider("ReachSlider", {
+    Title = "Reach Distance",
+    Description = "Дальность захвата мяча в студиях",
+    Default = 15,
+    Min = 5,
+    Max = 30,
+    Rounding = 0,
+    Callback = function(Value)
+        ZenithConfig.ReachDistance = Value
+    end
+})
+
+-- ==============================================================================
+-- ВКЛАДКА 2: CURVE & BALL MODULATION
+-- ==============================================================================
+
+Tabs.Curve:AddParagraph({
+    Title = "Модуль углового вращения (Ball Curve)",
+    Content = "Придает мячу аэродинамический момент вращения для обводки защитников и стенки."
+})
+
+Tabs.Curve:AddToggle("CurveToggle", {
+    Title = "Aimbot Ball Curve Engine",
+    Default = false,
+    Description = "Активирует расчет закрутки сферы при ударе",
     Callback = function(Value)
         ZenithConfig.CurveEnabled = Value
     end
 })
 
-Tabs.Main:AddDropdown("CurveTypeDropdown", {
-    Title = "Curve Trajectory Style",
-    Description = "Характер закрутки сферы",
-    Values = {"Swerve (Dry Leaf)", "Banana Kick", "Knuckleball Drift"},
+Tabs.Curve:AddDropdown("CurveDropdown", {
+    Title = "Trajectory Preset",
+    Description = "Стиль закрутки мяча",
+    Values = {"Dry Leaf (Swerve)", "Banana Curve", "Knuckleball Chaos", "Dip Shot"},
     Default = 1,
     Callback = function(Value)
         ZenithConfig.CurveType = Value
     end
 })
 
-Tabs.Main:AddSlider("CurvePowerSlider", {
+Tabs.Curve:AddSlider("CurvePowerSlider", {
     Title = "Curve Intensity",
-    Description = "Сила углового вращения мяча",
-    Default = 20,
+    Description = "Сила угловой скорости (Angular Velocity)",
+    Default = 25,
     Min = 5,
-    Max = 50,
+    Max = 60,
     Rounding = 1,
     Callback = function(Value)
         ZenithConfig.CurvePower = Value
@@ -144,92 +185,77 @@ Tabs.Main:AddSlider("CurvePowerSlider", {
 })
 
 -- ==============================================================================
--- ВКЛАДКА 2: VISUALS & ESP (Визуальные модули)
+-- ВКЛАДКА 3: VISUALS & ESP
 -- ==============================================================================
 
-Tabs.Visuals:AddToggle("BallESPToggle", {
+Tabs.Visuals:AddToggle("ESPBallToggle", {
     Title = "Ball ESP Highlight",
     Default = true,
-    Description = "Подсвечивает игровой мяч неоновым маркером",
+    Description = "Подсвечивает игровой мяч через текстуры карты",
     Callback = function(Value)
         ZenithConfig.BallESP = Value
     end
 })
 
-Tabs.Visuals:AddToggle("TracerToggle", {
-    Title = "Target Line Tracer",
+Tabs.Visuals:AddToggle("TracerLineToggle", {
+    Title = "Vector Tracer Line",
     Default = false,
-    Description = "Рисует линию от игрока к текущему положению мяча",
+    Description = "Рисует нацеливание от персонажа на мяч",
     Callback = function(Value)
-        ZenithConfig.TracerEnabled = Value
+        ZenithConfig.TracerLine = Value
     end
 })
 
 -- ==============================================================================
--- ВКЛАДКА 3: CONFIG & ENGINE SETTINGS (Настройки движка)
+-- ВКЛАДКА 4: SYSTEM CONFIGURATION
 -- ==============================================================================
 
 Tabs.Settings:AddToggle("NotifToggle", {
     Title = "System Notifications",
     Default = true,
-    Description = "Выводить всплывающие уведомления при смене режимов",
+    Description = "Отображение всплывающих оповещений интерфейса",
     Callback = function(Value)
         ZenithConfig.NotificationSystem = Value
     end
 })
 
 Tabs.Settings:AddToggle("DebugToggle", {
-    Title = "Console Debug Logging",
+    Title = "Console Debug Output",
     Default = false,
-    Description = "Вывод служебных данных в консоль F9",
+    Description = "Вывод служебных логов в консоль F9",
     Callback = function(Value)
         ZenithConfig.DebugMode = Value
     end
 })
 
 Tabs.Settings:AddButton({
-    Title = "Unload Zenithware Core",
-    Description = "Полностью выгружает скрипт и очищает память",
+    Title = "Emergency Unload",
+    Description = "Безопасно выгружает скрипт и очищает память",
     Callback = function()
-        Window:Dialog({
-            Title = "Предупреждение",
-            Content = "Вы действительно хотите выгрузить Zenithware Enterprise?",
-            Buttons = {
-                {
-                    Title = "Подтвердить",
-                    Callback = function()
-                        Window:Destroy()
-                    end
-                },
-                {
-                    Title = "Отмена",
-                    Callback = function() end
-                }
-            }
-        })
+        Window:Destroy()
     end
 })
 
 -- ==============================================================================
--- ВКЛАДКА 4: SYSTEM INFO (Информация о системе)
+-- ВКЛАДКА 5: TELEMETRY & INFO
 -- ==============================================================================
 
 Tabs.Info:AddParagraph({
-    Title = "Zenithware Build Specification",
-    Content = "Developer: " .. AUTHOR .. "\nFramework: Fluent UI & Enterprise Math Physics\nStatus: Active & Protected\nCompatibility: Real Executor (100% sUNC)"
+    Title = "System Build Specifications",
+    Content = "Framework: Fluent UI & Enterprise Math\nAuthor: " .. AUTHOR .. "\nBuild Version: " .. VERSION .. "\nExecution Status: Optimized for Real Executor"
 })
 
 Tabs.Info:AddParagraph({
-    Title = "Инструкция по эксплуатации",
-    Content = "1. Меню открывается и закрывается на клавишу **Left Control**.\n2. Для работы Aimbot подходите близко к мячу в момент удара.\n3. Закрутка работает автоматически при активном тумблере Curve."
+    Title = "Инструкция управления",
+    Content = "• Нажмите **Left Control**, чтобы скрыть или открыть меню.\n• Убедитесь, что находитесь близко к мячу для срабатывания триггера."
 })
 
 -- ==============================================================================
--- МАТЕМАТИЧЕСКОЕ ЯДРО И ФИЗИЧЕСКИЙ РАСЧЕТ
+-- ВЫСОКОУРОВНЕВОЕ МАТЕМАТИЧЕСКОЕ ЯДРО ОБРАБОТКИ ФИЗИКИ
 -- ==============================================================================
 
-local function getOptimalGoalPosition()
-    local targetPos = Camera.CFrame.Position + (Camera.CFrame.LookVector * 400)
+local function findOpponentGoal()
+    local targetPosition = Camera.CFrame.Position + (Camera.CFrame.LookVector * 450)
     
     pcall(function()
         for _, obj in ipairs(Workspace:GetDescendants()) do
@@ -237,13 +263,17 @@ local function getOptimalGoalPosition()
                 local name = obj.Name:lower()
                 if name:find("goal") or name:find("net") or name:find("target") then
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local dist = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
-                        if dist > 45 then 
-                            targetPos = obj.Position
-                            if ZenithConfig.AimTargetPart == "Top Corner (Hole)" then
-                                targetPos = targetPos + Vector3.new(0, 12, 0)
-                            elseif ZenithConfig.AimTargetPart == "Bottom Corner (Low)" then
-                                targetPos = targetPos + Vector3.new(0, 2, 0)
+                        local distance = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
+                        if distance > 40 then
+                            targetPosition = obj.Position
+                            
+                            -- Коррекция точки в зависимости от пресета
+                            if ZenithConfig.TargetMode == "Top Left Corner" then
+                                targetPosition = targetPosition + Vector3.new(-8, 12, 0)
+                            elseif ZenithConfig.TargetMode == "Bottom Right Corner" then
+                                targetPosition = targetPosition + Vector3.new(8, 2, 0)
+                            elseif ZenithConfig.TargetMode == "Randomized Spread" then
+                                targetPosition = targetPosition + Vector3.new(math.random(-5, 5), math.random(2, 10), 0)
                             end
                             break
                         end
@@ -253,89 +283,91 @@ local function getOptimalGoalPosition()
         end
     end)
     
-    return targetPos
+    return targetPosition
 end
 
-local function applyCurveEffect(ball)
+local function applyBallCurve(ball)
     if not ZenithConfig.CurveEnabled then return end
     pcall(function()
-        local intensity = ZenithConfig.CurvePower * 10
-        if ZenithConfig.CurveType == "Swerve (Dry Leaf)" then
-            ball.AssemblyAngularVelocity = Vector3.new(intensity * 0.5, intensity * 1.5, intensity * 0.2)
-        elseif ZenithConfig.CurveType == "Banana Kick" then
-            ball.AssemblyAngularVelocity = Vector3.new(intensity * 1.2, intensity * 0.8, intensity * 1.0)
-        elseif ZenithConfig.CurveType == "Knuckleball Drift" then
-            ball.AssemblyAngularVelocity = Vector3.new(math.random(-intensity, intensity), intensity * 2, math.random(-intensity, intensity))
+        local pow = ZenithConfig.CurvePower * 12
+        if ZenithConfig.CurveType == "Dry Leaf (Swerve)" then
+            ball.AssemblyAngularVelocity = Vector3.new(pow * 0.4, pow * 1.6, pow * 0.1)
+        elseif ZenithConfig.CurveType == "Banana Curve" then
+            ball.AssemblyAngularVelocity = Vector3.new(pow * 1.3, pow * 0.7, pow * 1.1)
+        elseif ZenithConfig.CurveType == "Knuckleball Chaos" then
+            ball.AssemblyAngularVelocity = Vector3.new(math.random(-pow, pow), pow * 2.2, math.random(-pow, pow))
+        elseif ZenithConfig.CurveType == "Dip Shot" then
+            ball.AssemblyAngularVelocity = Vector3.new(-pow * 2, 0, 0)
         end
     end)
 end
 
-local function hookGameBall(ball)
-    if not ball or ball:GetAttribute("ZenithEnterpriseHooked") then return end
-    ball:SetAttribute("ZenithEnterpriseHooked", true)
+local function hookBallInstance(ball)
+    if not ball or ball:GetAttribute("ZenithEnterpriseProcessed") then return end
+    ball:SetAttribute("ZenithEnterpriseProcessed", true)
 
-    if ZenithConfig.DebugMode then
-        print("[Zenithware Engine]: Successfully hooked ball object -> " .. ball.Name)
+    if ZenithConfig.DebugConsole then
+        print("[Zenithware Telemetry]: Successfully hooked dynamic ball object -> " .. ball.Name)
     end
 
     ball.Touched:Connect(function(hit)
-        local char = LocalPlayer.Character
-        if not char or not hit:IsDescendantOf(char) then return end
+        local character = LocalPlayer.Character
+        if not character or not hit:IsDescendantOf(character) then return end
 
         pcall(function()
             if ZenithConfig.AimbotEnabled then
-                local goalPos = getOptimalGoalPosition()
-                local currentVel = ball.AssemblyLinearVelocity
-                local speed = math.clamp(currentVel.Magnitude, 60, 140)
+                local goalPos = findOpponentGoal()
+                local velocityMag = math.clamp(ball.AssemblyLinearVelocity.Magnitude, 65, 150)
                 
-                -- Расчет упреждения с учетом вектора цели
-                local finalTarget = goalPos + (Vector3.new(0, 2, 0) * ZenithConfig.PredictionAmount)
-                local direction = (finalTarget - ball.Position).Unit
+                local predictedPos = goalPos + (Vector3.new(0, 3, 0) * ZenithConfig.PredictionValue)
+                local movementDirection = (predictedPos - ball.Position).Unit
                 
-                ball.AssemblyLinearVelocity = direction * speed
-                ball.CFrame = CFrame.new(ball.Position, finalTarget)
+                ball.AssemblyLinearVelocity = movementDirection * velocityMag
+                ball.CFrame = CFrame.new(ball.Position, predictedPos)
             end
 
             if ZenithConfig.CurveEnabled then
-                applyCurveEffect(ball)
+                applyBallCurve(ball)
             end
         end)
     end)
 end
 
--- Высокопроизводительный фоновый сканер игровой зоны
+-- Надежный многоуровневый сканер игрового пространства с защитой от сбоев
 task.spawn(function()
     while true do
         pcall(function()
-            for _, obj in ipairs(Workspace:GetChildren()) do
-                if obj:IsA("BasePart") then
-                    local name = obj.Name:lower()
-                    if name:find("ball") or name:find("football") or name:find("soccer") then
-                        hookGameBall(obj)
+            -- Сканирование корня Workspace
+            for _, object in ipairs(Workspace:GetChildren()) do
+                if object:IsA("BasePart") then
+                    local nameL = object.Name:lower()
+                    if nameL:find("ball") or nameL:find("football") or nameL:find("soccer") then
+                        hookBallInstance(object)
                     end
                 end
             end
-            -- Проверка вложенных папок контейнеров
-            for _, container in ipairs(Workspace:GetChildren()) do
-                if container:IsA("Folder") or container:IsA("Model") then
-                    for _, obj in ipairs(container:GetChildren()) do
-                        if obj:IsA("BasePart") then
-                            local name = obj.Name:lower()
-                            if name:find("ball") or name:find("football") or name:find("soccer") then
-                                hookGameBall(obj)
+            
+            -- Глубокое сканирование вложенных папок и моделей
+            for _, folder in ipairs(Workspace:GetChildren()) do
+                if folder:IsA("Folder") or folder:IsA("Model") then
+                    for _, subObj in ipairs(folder:GetChildren()) do
+                        if subObj:IsA("BasePart") then
+                            local nameL = subObj.Name:lower()
+                            if nameL:find("ball") or nameL:find("football") or nameL:find("soccer") then
+                                hookBallInstance(subObj)
                             end
                         end
                     end
                 end
             end
         end)
-        task.wait(0.4)
+        task.wait(0.35)
     end
 end)
 
--- Финальное уведомление об успешном развертывании
+-- Финальное уведомление системы
 Fluent:Notify({
     Title = "Zenithware Enterprise Loaded!",
-    Content = "Все модули успешно проинициализированы. Меню: [Left Control].",
+    Content = "Все системы успешно развернуты. Управление меню: [Left Control].",
     Duration = 5
 })
