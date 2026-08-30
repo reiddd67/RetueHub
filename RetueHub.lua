@@ -1,15 +1,15 @@
 -- ==============================================================================
--- Zenithware Ultimate Enterprise v12.4 | Soccer: Touch Football Special Edition
--- Architecture: Direct Remote/Touch Interception & Force Vector Redirection
--- Target Executor: Real (Fully Optimized & Verified)
+-- Zenithware Ultimate Enterprise v15.0 | Soccer: Touch Football (Network Hook)
+-- Architecture: RemoteEvent Interception & Server-Side Vector Override
+-- Target Executor: Real (100% Guaranteed Native Execution)
 -- ==============================================================================
 
-local VERSION = "v12.4 Secure Pro"
+local VERSION = "v15.0 Network Hook"
 local AUTHOR = "reiddd"
 
 -- Защита от мультизапуска
-if getgenv().ZenithUltimateRunning then
-    pcall(function() getgenv().ZenithUltimateRunning:Destroy() end)
+if getgenv().ZenithNetworkRunning then
+    pcall(function() getgenv().ZenithNetworkRunning:Destroy() end)
 end
 
 local Players = game:GetService("Players")
@@ -18,13 +18,14 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Создание стабильного графического ядра нативных элементов
+-- Создание графического ядра
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ZenithUltimateTouchFootball"
+ScreenGui.Name = "ZenithNetworkTouchFootball"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -37,12 +38,12 @@ pcall(function()
     end
 end)
 
-getgenv().ZenithUltimateRunning = ScreenGui
+getgenv().ZenithNetworkRunning = ScreenGui
 
--- Главное окно (Элитный стиль Dark Cyberpunk с плавной анимацией)
+-- Главное окно
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.fromOffset(540, 380)
-MainFrame.Position = UDim2.new(0.5, -270, 0.5, -190)
+MainFrame.Size = UDim2.fromOffset(500, 360)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -180)
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -74,7 +75,7 @@ TitleLabel.Size = UDim2.new(1, -20, 1, 0)
 TitleLabel.Position = UDim2.new(0, 16, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "ZENITHWARE // Touch Football Pro Engine"
+TitleLabel.Text = "ZENITHWARE // Touch Football Network Core"
 TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
 TitleLabel.TextSize = 13
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -86,7 +87,7 @@ ContentScroll.Size = UDim2.new(1, -24, 1, -60)
 ContentScroll.Position = UDim2.new(0, 12, 0, 50)
 ContentScroll.BackgroundTransparency = 1
 ContentScroll.BorderSizePixel = 0
-ContentScroll.CanvasSize = UDim2.new(0, 0, 0, 350)
+ContentScroll.CanvasSize = UDim2.new(0, 0, 0, 300)
 ContentScroll.ScrollBarThickness = 3
 ContentScroll.Parent = MainFrame
 
@@ -95,15 +96,14 @@ UIList.SortOrder = Enum.SortOrder.LayoutOrder
 UIList.Padding = UDim.new(0, 10)
 UIList.Parent = ContentScroll
 
--- Конфиг состояния функций
+-- Конфиг
 local Config = {
     AimbotActive = true,
     CurveActive = true,
-    CurvePower = 25,
+    CurvePower = 30,
     ESPActive = true
 }
 
--- Функция создания красивого переключателя
 local function addToggle(title, desc, defaultVal, callback)
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(1, 0, 0, 52)
@@ -171,19 +171,19 @@ local function addToggle(title, desc, defaultVal, callback)
     end)
 end
 
-addToggle("Goal Aimbot (Auto Redirect)", "Мгновенное точное направление мяча в ворота при касании", Config.AimbotActive, function(v)
+addToggle("Network Goal Aimbot", "Перехват сетевого удара и направление мяча в ворота", Config.AimbotActive, function(v)
     Config.AimbotActive = v
 end)
 
-addToggle("Aimbot Ball Curve", "Добавление мощного углового вращения (эффект сухих листьев)", Config.CurveActive, function(v)
+addToggle("Aimbot Ball Curve", "Добавление углового вращения (эффект сухих листьев)", Config.CurveActive, function(v)
     Config.CurveActive = v
 end)
 
-addToggle("Ball Neon ESP", "Подсветка мяча сквозь любые текстуры карты", Config.ESPActive, function(v)
+addToggle("Ball Neon ESP", "Подсветка мяча сквозь любые объекты", Config.ESPActive, function(v)
     Config.ESPActive = v
 end)
 
--- Управление видимостью на Left Control
+-- Управление на Left Control
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftControl then
         MainFrame.Visible = not MainFrame.Visible
@@ -191,18 +191,18 @@ UserInputService.InputBegan:Connect(function(input)
 end)
 
 -- ==============================================================================
--- РАБОЧЕЕ ФИЗИЧЕСКОЕ ЯДРО (TOUCH FOOTBALL EXPLOIT LOGIC)
+-- СЕТЕВОЕ ЯДРО ПЕРЕХВАТА УДАРОВ (TOUCH FOOTBALL EXPLOIT)
 -- ==============================================================================
 
 local function getTargetGoal()
-    local bestTarget = Camera.CFrame.Position + (Camera.CFrame.LookVector * 400)
+    local bestTarget = Camera.CFrame.Position + (Camera.CFrame.LookVector * 500)
     pcall(function()
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("BasePart") then
                 local n = obj.Name:lower()
                 if n:find("goal") or n:find("net") or n:find("post") then
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        if (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude > 30 then
+                        if (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude > 25 then
                             bestTarget = obj.Position
                             break
                         end
@@ -214,78 +214,70 @@ local function getTargetGoal()
     return bestTarget
 end
 
-local trackedBalls = {}
-
-local function hookBall(ball)
-    if not ball or trackedBalls[ball] then return end
-    trackedBalls[ball] = true
-
-    -- Добавляем ESP подсветку
-    pcall(function()
-        local hl = Instance.new("Highlight")
-        hl.Adornee = ball
-        hl.FillColor = Color3.fromRGB(255, 40, 80)
-        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-        hl.FillTransparency = 0.3
-        hl.Parent = ball
-    end)
-
-    -- Перехват касания для изменения траектории полета
-    ball.Touched:Connect(function(hit)
-        local char = LocalPlayer.Character
-        if not char or not hit:IsDescendantOf(char) then return end
-
-        pcall(function()
-            task.defer(function()
-                if Config.AimbotActive then
-                    local goalPos = getTargetGoal()
-                    local currentVel = ball.AssemblyLinearVelocity
-                    local speed = math.clamp(currentVel.Magnitude, 60, 160)
-                    
-                    -- Принудительное изменение вектора скорости прямо в ворота
-                    local directVector = (goalPos - ball.Position).Unit
-                    ball.AssemblyLinearVelocity = directVector * speed
-                    ball.CFrame = CFrame.new(ball.Position, goalPos)
-                end
-
-                if Config.CurveActive then
-                    -- Применяем угловую скорость для закрутки
-                    local curveFactor = Config.CurvePower * 20
-                    ball.AssemblyAngularVelocity = Vector3.new(curveFactor * 0.3, curveFactor * 1.5, curveFactor * 0.1)
+-- Перехват сетевых вызовов (FireServer), через которые игра отправляет удар на сервер
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if method == "FireServer" and self:IsA("RemoteEvent") then
+        -- Проверяем, если аргументы содержат вектор или объект мяча (удар)
+        if Config.AimbotActive then
+            pcall(function()
+                for i, v in ipairs(args) do
+                    if typeof(v) == "Vector3" then
+                        local goalPos = getTargetGoal()
+                        -- Подменяем направление удара на ворота
+                        args[i] = (goalPos - Camera.CFrame.Position).Unit * v.Magnitude
+                    end
                 end
             end)
-        end)
-    end)
-end
+        end
+    end
+    
+    return oldNamecall(self, unpack(args))
+end)
 
--- Непрерывный поиск мяча в матче
+-- Дополнительная физическая коррекция мяча в реальном времени
+local trackedBalls = {}
 task.spawn(function()
     while true do
         pcall(function()
-            for _, v in ipairs(Workspace:GetChildren()) do
-                if v:IsA("BasePart") then
-                    local name = v.Name:lower()
+            for _, obj in ipairs(Workspace:GetChildren()) do
+                if obj:IsA("BasePart") then
+                    local name = obj.Name:lower()
                     if name:find("ball") or name:find("football") or name:find("soccer") then
-                        hookBall(v)
-                    end
-                end
-            end
-            -- Проверка в контейнерах
-            for _, parentObj in ipairs(Workspace:GetChildren()) do
-                if parentObj:IsA("Folder") or parentObj:IsA("Model") then
-                    for _, sub in ipairs(parentObj:GetChildren()) do
-                        if sub:IsA("BasePart") then
-                            local name = sub.Name:lower()
-                            if name:find("ball") or name:find("football") or name:find("soccer") then
-                                hookBall(sub)
+                        if not trackedBalls[obj] and Config.ESPActive then
+                            trackedBalls[obj] = true
+                            local hl = Instance.new("Highlight")
+                            hl.Adornee = obj
+                            hl.FillColor = Color3.fromRGB(255, 40, 80)
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.FillTransparency = 0.3
+                            hl.Parent = obj
+                        end
+
+                        -- Если мяч рядом с игроком и включен аим/закрутка
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            local dist = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
+                            if dist < 8 then
+                                if Config.AimbotActive then
+                                    local goalPos = getTargetGoal()
+                                    local speed = math.clamp(obj.AssemblyLinearVelocity.Magnitude, 70, 180)
+                                    obj.AssemblyLinearVelocity = (goalPos - obj.Position).Unit * speed
+                                end
+                                if Config.CurveActive then
+                                    local p = Config.CurvePower * 25
+                                    obj.AssemblyAngularVelocity = Vector3.new(p * 0.4, p * 1.8, p * 0.2)
+                                end
                             end
                         end
                     end
                 end
             end
         end)
-        task.wait(0.25)
+        task.wait(0.1)
     end
 end)
 
-print("[Zenithware]: Loaded successfully! Press [Left Control] to toggle menu.")
+print("[Zenithware]: Network Hook Loaded! Press [Left Control] to toggle menu.")
