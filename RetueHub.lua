@@ -1,112 +1,82 @@
 -- ==============================================================================
--- Zenithware v2.5 Massive Core | Touch Football Ultimate Engine (WindUI Edition)
+-- Zenithware Ultimate | Touch Football Clean Edition (Fluent UI)
 -- ==============================================================================
 
-local VERSION = "v2.5 Pro"
-local AUTHOR = "reiddd"
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- Подгружаем ультрасовременную библиотеку WindUI
-local Success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-end)
+local Window = Fluent:CreateWindow({
+    Title = "Zenithware Pro",
+    SubTitle = "Touch Football Hub",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(500, 360),
+    Acrylic = true, -- Премиальное размытие фона
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Кнопка скрытия/показа меню
+})
 
-if not Success or not WindUI then
-    warn("[Zenithware Fatal]: Failed to load WindUI library.")
-    return
-end
+-- Создаем единственную чистую вкладку
+local Tabs = {
+    Main = Window:AddTab({ Title = "Core Hub", Icon = "target" })
+}
 
+local Options = Fluent.Options
+
+-- Конфиг функций
+local Settings = {
+    AimbotEnabled = false,
+    CurveEnabled = false,
+    CurvePower = 15.0
+}
+
+-- ==============================================================================
+-- ФУНКЦИЯ 1: AIMBOT (Наведение вектора мяча в ворота)
+-- ==============================================================================
+Tabs.Main:AddToggle("AimbotToggle", {
+    Title = "Aimbot (Auto Goal Redirect)",
+    Default = false,
+    Description = "Мгновенно доводит мяч до ворот соперника при касании",
+    Callback = function(Value)
+        Settings.AimbotEnabled = Value
+        Fluent:Notify({
+            Title = "Zenithware",
+            Content = Value and "Aimbot Activated!" or "Aimbot Deactivated.",
+            Duration = 2
+        })
+    end
+})
+
+-- ==============================================================================
+-- ФУНКЦИЯ 2: AIMBOT BALL CURVE (Закрутка мяча)
+-- ==============================================================================
+Tabs.Main:AddToggle("CurveToggle", {
+    Title = "Aimbot Ball Curve",
+    Default = false,
+    Description = "Добавляет мощное вращение (эффект сухих листьев / траектория)",
+    Callback = function(Value)
+        Settings.CurveEnabled = Value
+    end
+})
+
+Tabs.Main:AddSlider("CurvePowerSlider", {
+    Title = "Curve Intensity",
+    Description = "Сила закрутки мяча",
+    Default = 15,
+    Min = 5,
+    Max = 30,
+    Rounding = 1,
+    Callback = function(Value)
+        Settings.CurvePower = Value
+    end
+})
+
+-- Логика перехвата мяча и физики
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Создаем главное футуристичное окно через WindUI
-local Window = WindUI:CreateWindow({
-    Title = "Zenithware " .. VERSION .. " | Football God",
-    Icon = "zap", -- Иконка из библиотеки Lucide
-    Author = "By " .. AUTHOR,
-    Folder = "ZenithwareConfig",
-    Size = UDim2.fromOffset(580, 460),
-    Transparent = true,
-    Theme = "Dark", -- Премиальная темная тема
-    Resizable = false,
-})
-
--- Создаем вкладки
-local TabMain = Window:Tab({ Title = "Auto-Goal Hub", Icon = "target" })
-local TabVisuals = Window:Tab({ Title = "Visuals & ESP", Icon = "eye" })
-local TabSettings = Window:Tab({ Title = "Engine Config", Icon = "settings" })
-
--- Конфигурация движка
-local ZenithConfig = {
-    Enabled = false,
-    VisualESP = true,
-    NotificationEnabled = true,
-    SpeedMultiplier = 1.0,
-}
-
--- Элементы управления на главной вкладке
-TabMain:Toggle({
-    Title = "Auto-Goal Redirection",
-    Desc = "Мгновенно перенаправляет мяч в ворота соперника при касании",
-    Value = false,
-    Callback = function(Value)
-        ZenithConfig.Enabled = Value
-        if ZenithConfig.NotificationEnabled then
-            WindUI:Notify({
-                Title = "Zenithware Status",
-                Content = Value and "Auto-Goal Activated & Locked!" or "Auto-Goal Deactivated.",
-                Duration = 2,
-                Icon = Value and "check-circle" or "x-circle",
-            })
-        end
-    end,
-})
-
-TabMain:Paragraph({
-    Title = "Информация о режиме",
-    Desc = "Скрипт сохраняет родную скорость удара мяча, но меняет вектор полета точно в ворота под любым углом.",
-})
-
--- Элементы вкладки Визуалов
-TabVisuals:Toggle({
-    Title = "Ball ESP & Highlight",
-    Desc = "Подсветка игрового мяча на поле",
-    Value = true,
-    Callback = function(Value)
-        ZenithConfig.VisualESP = Value
-    end,
-})
-
--- Элементы вкладки Настроек
-TabSettings:Slider({
-    Title = "Velocity Correction Boost",
-    Desc = "Множитель корректировки скорости полета",
-    Step = 0.1,
-    Value = {
-        Min = 0.5,
-        Max = 2.0,
-        Default = 1.0,
-    },
-    Callback = function(Value)
-        ZenithConfig.SpeedMultiplier = Value
-    end,
-})
-
-TabSettings:Toggle({
-    Title = "System Notifications",
-    Desc = "Показывать уведомления при включении функций",
-    Value = true,
-    Callback = function(Value)
-        ZenithConfig.NotificationEnabled = Value
-    end,
-})
-
--- Функция поиска ворот соперника
-local function getOpponentGoalPosition()
+local function getGoalPosition()
     local targetPos = Camera.CFrame.Position + (Camera.CFrame.LookVector * 300)
-    
     pcall(function()
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("BasePart") then
@@ -114,7 +84,7 @@ local function getOpponentGoalPosition()
                 if name:find("goal") or name:find("net") or name:find("target") then
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                         local dist = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
-                        if dist > 40 then 
+                        if dist > 35 then 
                             targetPos = obj.Position
                             break
                         end
@@ -123,76 +93,52 @@ local function getOpponentGoalPosition()
             end
         end
     end)
-    
     return targetPos
 end
 
--- Логика перехвата и мгновенного забивания мяча
-local function setupBall(ball)
-    if not ball or ball:GetAttribute("ZenithHooked") then return end
-    ball:SetAttribute("ZenithHooked", true)
+local function hookBall(ball)
+    if not ball or ball:GetAttribute("ZenithLocked") then return end
+    ball:SetAttribute("ZenithLocked", true)
 
-    local connection
-    connection = ball.Touched:Connect(function(hit)
-        if not ZenithConfig.Enabled then return end
-        
+    ball.Touched:Connect(function(hit)
         local char = LocalPlayer.Character
-        if char and hit:IsDescendantOf(char) then
-            pcall(function()
-                local currentVelocity = ball.AssemblyLinearVelocity
-                local speed = currentVelocity.Magnitude * ZenithConfig.SpeedMultiplier
-                if speed < 15 then speed = 75 end -- Страховка от нулевой скорости
+        if not char or not hit:IsDescendantOf(char) then return end
 
-                local goalPos = getOpponentGoalPosition()
-                local direction = (goalPos - ball.Position).Unit
+        pcall(function()
+            if Settings.AimbotEnabled then
+                local goalPos = getGoalPosition()
+                local speed = math.clamp(ball.AssemblyLinearVelocity.Magnitude, 50, 120)
+                local dir = (goalPos - ball.Position).Unit
                 
-                -- Перенаправляем физику и вектор движения
-                ball.AssemblyLinearVelocity = direction * speed
+                -- Корректируем скорость и вектор полета
+                ball.AssemblyLinearVelocity = dir * speed
                 ball.CFrame = CFrame.new(ball.Position, goalPos)
-            end)
-        end
-    end)
+            end
 
-    ball.AncestryChanged:Connect(function()
-        if not ball.Parent then
-            if connection then connection:Disconnect() end
-        end
+            if Settings.CurveEnabled then
+                -- Добавляем угловую скорость для закрутки
+                ball.AssemblyAngularVelocity = Vector3.new(0, Settings.CurvePower * 5, 0)
+            end
+        end)
     end)
 end
 
--- Фоновый сканер мячей на карте (оптимизированный)
+-- Быстрый сканер мяча без лагов
 task.spawn(function()
     while true do
         pcall(function()
             for _, obj in ipairs(Workspace:GetChildren()) do
-                if obj:IsA("BasePart") then
-                    local name = obj.Name:lower()
-                    if name:find("ball") or name:find("football") then
-                        setupBall(obj)
-                    end
-                end
-            end
-            for _, child in ipairs(Workspace:GetChildren()) do
-                if child:IsA("Folder") or child:IsA("Model") then
-                    for _, obj in ipairs(child:GetChildren()) do
-                        if obj:IsA("BasePart") then
-                            local name = obj.Name:lower()
-                            if name:find("ball") or name:find("football") then
-                                setupBall(obj)
-                            end
-                        end
-                    end
+                if obj:IsA("BasePart") and (obj.Name:lower():find("ball") or obj.Name:lower():find("football")) then
+                    hookBall(obj)
                 end
             end
         end)
-        task.wait(0.8)
+        task.wait(0.5)
     end
 end)
 
--- Уведомление об успешной загрузке
-WindUI:Notify({
-    Title = "Zenithware " .. VERSION .. " Loaded!",
-    Content = "WindUI Engine is ready to play.",
-    Duration = 4,
-    Icon = "zap",
+Fluent:Notify({
+    Title = "Zenithware Loaded!",
+    Content = "Fluent UI initialized successfully. Press LeftCtrl to toggle menu.",
+    Duration = 4
 })
